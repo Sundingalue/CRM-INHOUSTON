@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CRM-INH · Demo UI</title>
+  <style>
+    :root{--inh-yellow:#FFCC00;--inh-black:#000;--bg:#0b0b0b;--card:#161616;--text:#eaeaea;--muted:#a9a9a9}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
+    .wrap{max-width:1000px;margin:40px auto;padding:20px}
+    .hero{display:flex;gap:24px;align-items:center;padding:20px;border:1px solid #222;border-radius:16px;background:linear-gradient(180deg,#121212 0%,#0f0f0f 100%)}
+    .logo{width:72px;height:72px;border-radius:12px;background:#222;display:grid;place-items:center;overflow:hidden}
+    .badge{display:inline-flex;gap:8px;align-items:center;background:var(--card);border:1px solid #222;border-radius:999px;padding:6px 12px;color:var(--muted);font-size:12px}
+    h1{margin:8px 0 4px 0}
+    .brand-colors{display:flex;gap:8px;margin-top:8px}
+    .swatch{width:22px;height:22px;border-radius:6px;border:1px solid #222}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}
+    .card{background:var(--card);border:1px solid #222;border-radius:16px;padding:16px}
+    .card h3{margin:0 0 8px 0}
+    input,button,textarea{background:#0f0f0f;color:var(--text);border:1px solid #222;border-radius:10px;padding:10px;font-size:14px}
+    button{cursor:pointer}
+    .row{display:flex;gap:10px}
+    .muted{color:var(--muted);font-size:13px}
+    .pill{background:#111;border:1px solid #222;border-radius:999px;padding:6px 10px;font-size:12px}
+    .link{color:var(--inh-yellow);text-decoration:none}
+    .ok{color:#8ef18e}.err{color:#ff7b7b}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{border-bottom:1px solid #222;padding:8px;text-align:left}
+    .table th{color:#bbb;font-weight:600}
+    .footer{margin-top:24px;color:#7a7a7a;font-size:12px}
+    @media (max-width:880px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="badge">CRM-INH · Demo UI <span class="pill">/app</span></div>
+    <div class="hero">
+      <div class="logo" id="logoBox">INH</div>
+      <div>
+        <h1 id="brandName">Cargando marca…</h1>
+        <div class="muted" id="brandSlug"></div>
+        <div class="brand-colors">
+          <div class="swatch" id="c1"></div>
+          <div class="swatch" id="c2"></div>
+        </div>
+        <div style="margin-top:10px" class="row">
+          <a class="link" href="/docs" target="_blank">➡ Abrir API Docs</a>
+          <a class="link" href="/openapi.json" target="_blank">openapi.json</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Branding (público)</h3>
+        <p class="muted">Esto llama a <span class="mono">GET /branding</span> sin token.</p>
+        <pre id="brandingDump" class="mono" style="white-space:pre-wrap"></pre>
+      </div>
+
+      <div class="card">
+        <h3>Tenants (requiere token)</h3>
+        <p class="muted">
+          Pega tu <span class="pill">Bearer access_token</span> (el que recibiste en <span class="mono">POST /auth/register</span> o <span class="mono">/auth/login</span>)
+          y consulta <span class="mono">GET /tenants</span>.
+        </p>
+        <div class="row">
+          <input id="token" placeholder="pega aquí tu Bearer token" style="flex:1">
+          <button id="btnTenants">Consultar</button>
+        </div>
+        <div id="tenantsMsg" style="margin-top:8px"></div>
+        <table class="table" style="margin-top:10px;display:none" id="tenantsTable">
+          <thead><tr><th>Nombre</th><th>Slug</th><th>Primario</th><th>Accent</th></tr></thead>
+          <tbody id="tenantsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="footer">
+      © INH · Demo. Colores y logo vienen de tu tabla <span class="mono">tenants</span>. Esta UI es solo de prueba.
+    </div>
+  </div>
+
+  <script>
+    async function loadBranding() {
+      try {
+        const r = await fetch('/branding');
+        const data = await r.json();
+        document.getElementById('brandingDump').textContent = JSON.stringify(data, null, 2);
+
+        document.getElementById('brandName').textContent = data.name || 'Sin nombre';
+        document.getElementById('brandSlug').textContent = data.slug ? '@' + data.slug : '';
+        document.getElementById('c1').style.background = data.color_primary || '#FFCC00';
+        document.getElementById('c2').style.background = data.color_accent || '#000000';
+
+        if (data.logo_url) {
+          const box = document.getElementById('logoBox');
+          box.innerHTML = '';
+          const img = document.createElement('img');
+          img.src = data.logo_url;
+          img.alt = 'logo';
+          img.style.width = '100%';
+          img.style.height = '100%';
+          img.style.objectFit = 'cover';
+          box.appendChild(img);
+        }
+      } catch (e) {
+        document.getElementById('brandingDump').textContent = 'Error cargando branding';
+      }
+    }
+
+    async function loadTenants() {
+      const token = document.getElementById('token').value.trim();
+      const msg = document.getElementById('tenantsMsg');
+      const table = document.getElementById('tenantsTable');
+      const body = document.getElementById('tenantsBody');
+
+      msg.textContent = 'Consultando...';
+      msg.className = 'muted';
+      table.style.display = 'none';
+      body.innerHTML = '';
+
+      if (!token) {
+        msg.textContent = 'Pega tu token primero.';
+        msg.className = 'err';
+        return;
+      }
+
+      try {
+        const r = await fetch('/tenants', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!r.ok) {
+          const t = await r.text();
+          msg.textContent = 'Error ' + r.status + ': ' + t;
+          msg.className = 'err';
+          return;
+        }
+        const data = await r.json();
+        if (!Array.isArray(data) || !data.length) {
+          msg.textContent = 'Sin resultados.';
+          msg.className = 'muted';
+          return;
+        }
+        data.forEach(tn => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${tn.name||''}</td><td>${tn.slug||''}</td>
+                          <td><span class="pill mono">${tn.color_primary||''}</span></td>
+                          <td><span class="pill mono">${tn.color_accent||''}</span></td>`;
+          body.appendChild(tr);
+        });
+        table.style.display = '';
+        msg.textContent = 'OK';
+        msg.className = 'ok';
+      } catch (e) {
+        msg.textContent = 'Error consultando /tenants';
+        msg.className = 'err';
+      }
+    }
+
+    document.getElementById('btnTenants').addEventListener('click', loadTenants);
+    loadBranding();
+  </script>
+</body>
+</html>
