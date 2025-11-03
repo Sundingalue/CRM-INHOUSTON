@@ -1,0 +1,45 @@
+version: '3.9'
+services:
+  crm-api:
+    build: ./apps/crm-api
+    env_file: ./.env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+
+  agents-service:
+    build: ./apps/agents-service
+    env_file: ./.env
+    ports:
+      - "8010:8001"
+    depends_on:
+      - db
+
+  crm-web:
+    build: ./apps/crm-web
+    environment:
+      - NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE}
+      - NEXT_PUBLIC_AGENTS_BASE=${NEXT_PUBLIC_AGENTS_BASE}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - crm-api
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  db_data:
